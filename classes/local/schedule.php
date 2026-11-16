@@ -60,6 +60,20 @@ class schedule {
     }
 
     /**
+     * The next class of each weekday with classes, for clients that write the line themselves (the ISMOS website).
+     *
+     * Weekdays are grouped in the site time zone, where the classes are planned, whoever asks.
+     *
+     * @param int $courseid
+     * @param int|null $now defaults to the current time
+     * @return array[] start (timestamp) and duration (seconds), Monday first; empty when no class is still to come
+     */
+    public static function next_classes(int $courseid, ?int $now = null): array {
+        $slots = self::slots(self::sessions($courseid, $now ?? time()), \core_date::get_server_timezone_object());
+        return array_map(fn(array $slot): array => ['start' => $slot['start'], 'duration' => $slot['duration']], $slots);
+    }
+
+    /**
      * Context for the theme_ismos/classtimes template, or null when no class is still to come.
      *
      * @param int $courseid
