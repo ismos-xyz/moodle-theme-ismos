@@ -19,9 +19,11 @@ namespace theme_ismos\local;
 /**
  * When a course's classes are: "Tuesday & Thursday, 17:00-18:30 (UTC-3)".
  *
- * Read from the course's attendance sessions, which teachers create for every live class. Only sessions still to come
+ * Read from the course's attendance sessions, which teachers create for every live class. Only classes not over yet
  * count. For each weekday the most common start time and length wins, so one moved class does not change the line, and
- * a weekday with far fewer classes than the busiest one (a one-off extra class) is left out.
+ * a weekday with far fewer classes than the busiest one (a one-off extra class) is left out. When no weekday has a
+ * second class to come, the classes are one-offs and the line gives their dates instead: "November 17, 17:00-18:30".
+ * When groups have classes at different times, no single line is true for everyone, so there is none.
  *
  * The text is in the viewer's Moodle time zone (the site's, for a visitor who is not signed in). The slots let the
  * browser rewrite it in the visitor's own time zone (amd/src/classtimes.js).
@@ -35,28 +37,43 @@ class schedule {
     private const MAXDURATION = 8 * HOURSECS;
 
     /**
-     * The class times of a course, or null when no class is still to come.
+     * The class times of courses: what export() gives, by course id, for the courses with a class to come.
+     *
+     * One query for every course, for pages with many cards.
+     *
+     * @param int[] $courseids
+     * @param int|null $now defaults to the current time
+     * @return array[] by course id: long ("Tuesday & Thursday, 17:00-18:30 (UTC-3)"), short ("Tue & Thu · 17:00
+     *     (UTC-3)") and slots (JSON list of the next class of each weekday: start timestamp, duration in seconds and
+     *     once, true for one-off classes)
+     */
+    public static function export_many(array $courseids, ?int $now = null): array {
+        $tz = \core_date::get_user_timezone_object();
+        $result = [];
+        foreach (self::sessions($courseids, $now ?? time()) as $courseid => $sessions) {
+            $slots = self::slots($sessions, $tz);
+            if (!$slots) {
+                continue;
+            }
+            $label = ' (' . self::utc_offset($tz, $slots[0]['start']) . ')';
+            $result[$courseid] = [
+                'long' => self::text($slots, $tz, true) . $label,
+                'short' => self::text($slots, $tz, false) . $label,
+                'slots' => json_encode(self::public_slots($slots)),
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * The class times of a course, or null when no class is to come.
      *
      * @param int $courseid
      * @param int|null $now defaults to the current time
-     * @return array|null long ("Tuesday & Thursday, 17:00-18:30 (UTC-3)"), short ("Tue & Thu · 17:00 (UTC-3)") and
-     *     slots (JSON list of the next class of each weekday: start timestamp and duration in seconds)
+     * @return array|null long, short and slots, as export_many() gives them
      */
     public static function export(int $courseid, ?int $now = null): ?array {
-        $tz = \core_date::get_user_timezone_object();
-        $slots = self::slots(self::sessions($courseid, $now ?? time()), $tz);
-        if (!$slots) {
-            return null;
-        }
-        $label = ' (' . self::utc_offset($tz, $slots[0]['start']) . ')';
-        return [
-            'long' => self::text($slots, $tz, true) . $label,
-            'short' => self::text($slots, $tz, false) . $label,
-            'slots' => json_encode(array_map(
-                fn(array $slot): array => ['start' => $slot['start'], 'duration' => $slot['duration']],
-                $slots
-            )),
-        ];
+        return self::export_many([$courseid], $now)[$courseid] ?? null;
     }
 
     /**
@@ -64,60 +81,117 @@ class schedule {
      *
      * Weekdays are grouped in the site time zone, where the classes are planned, whoever asks.
      *
-     * @param int $courseid
+     * @param int[] $courseids
      * @param int|null $now defaults to the current time
-     * @return array[] start (timestamp) and duration (seconds), Monday first; empty when no class is still to come
+     * @return array[] by course id, for the courses with a class to come: slots with start (timestamp), duration
+     *     (seconds) and once (a one-off class), Monday first
      */
-    public static function next_classes(int $courseid, ?int $now = null): array {
-        $slots = self::slots(self::sessions($courseid, $now ?? time()), \core_date::get_server_timezone_object());
-        return array_map(fn(array $slot): array => ['start' => $slot['start'], 'duration' => $slot['duration']], $slots);
+    public static function next_classes(array $courseids, ?int $now = null): array {
+        $tz = \core_date::get_server_timezone_object();
+        $result = [];
+        foreach (self::sessions($courseids, $now ?? time()) as $courseid => $sessions) {
+            $slots = self::slots($sessions, $tz);
+            if ($slots) {
+                $result[$courseid] = self::public_slots($slots);
+            }
+        }
+        return $result;
     }
 
     /**
-     * Context for the theme_ismos/classtimes template, or null when no class is still to come.
+     * Context for the theme_ismos/classtimes template, by course id, for the courses with a class to come.
+     *
+     * @param int[] $courseids
+     * @param string $form "long" for the course page, "short" for cards
+     * @return array[] form, text, slots and the "your time" labels the browser uses
+     */
+    public static function template_many(array $courseids, string $form): array {
+        $result = [];
+        foreach (self::export_many($courseids) as $courseid => $times) {
+            $result[$courseid] = [
+                'form' => $form,
+                'text' => $times[$form],
+                'slots' => $times['slots'],
+                'yourtime' => get_string('classtimesyourtime', 'theme_ismos'),
+                // The browser puts the place name in; {$a} stays for it.
+                'yourtimein' => get_string('classtimesyourtimein', 'theme_ismos', '{$a}'),
+            ];
+        }
+        return $result;
+    }
+
+    /**
+     * Context for the theme_ismos/classtimes template, or null when no class is to come.
      *
      * @param int $courseid
      * @param string $form "long" for the course page, "short" for cards
-     * @return array|null form, text, slots and the "your time" labels the browser uses
+     * @return array|null
      */
     public static function template(int $courseid, string $form): ?array {
-        $times = self::export($courseid);
-        if ($times === null) {
-            return null;
-        }
-        return [
-            'form' => $form,
-            'text' => $times[$form],
-            'slots' => $times['slots'],
-            'yourtime' => get_string('classtimesyourtime', 'theme_ismos'),
-            // The browser puts the place name in; {$a} stays for it.
-            'yourtimein' => get_string('classtimesyourtimein', 'theme_ismos', '{$a}'),
-        ];
+        return self::template_many([$courseid], $form)[$courseid] ?? null;
     }
 
     /**
-     * Sessions still to come in the course's visible attendance activities.
+     * Sessions not over yet in the courses' visible attendance activities.
      *
-     * @param int $courseid
+     * Nothing when the attendance plugin is not installed, or an admin disabled it.
+     *
+     * @param int[] $courseids
      * @param int $now
-     * @return \stdClass[] sessdate and duration, earliest first
+     * @return array[] by course id: sessions (sessdate, duration, groupid), earliest first
      */
-    private static function sessions(int $courseid, int $now): array {
+    private static function sessions(array $courseids, int $now): array {
         global $DB;
-        if (\core_component::get_component_directory('mod_attendance') === null) {
+        $courseids = array_unique(array_map('intval', $courseids));
+        if (!$courseids || !get_config('mod_attendance', 'version')) {
             return [];
         }
-        return array_values($DB->get_records_sql(
-            "SELECT s.id, s.sessdate, s.duration
+        [$insql, $params] = $DB->get_in_or_equal($courseids, SQL_PARAMS_NAMED);
+        $records = $DB->get_records_sql(
+            "SELECT s.id, a.course, s.sessdate, s.duration, s.groupid
                FROM {attendance_sessions} s
                JOIN {attendance} a ON a.id = s.attendanceid
                JOIN {course_modules} cm ON cm.instance = a.id AND cm.course = a.course
-               JOIN {modules} m ON m.id = cm.module AND m.name = :modname
-              WHERE a.course = :courseid AND cm.visible = 1 AND cm.deletioninprogress = 0
-                AND s.sessdate >= :now AND s.duration > 0 AND s.duration <= :maxduration
+               JOIN {modules} m ON m.id = cm.module AND m.name = :modname AND m.visible = 1
+              WHERE a.course $insql AND cm.visible = 1 AND cm.deletioninprogress = 0
+                AND s.sessdate + s.duration > :now AND s.duration > 0 AND s.duration <= :maxduration
            ORDER BY s.sessdate ASC, s.id ASC",
-            ['modname' => 'attendance', 'courseid' => $courseid, 'now' => $now, 'maxduration' => self::MAXDURATION]
-        ));
+            $params + ['modname' => 'attendance', 'now' => $now, 'maxduration' => self::MAXDURATION]
+        );
+        $bycourse = [];
+        foreach ($records as $record) {
+            $bycourse[(int) $record->course][] = $record;
+        }
+        ksort($bycourse);
+        return $bycourse;
+    }
+
+    /**
+     * The slots of a course, unless its groups have classes at different times.
+     *
+     * Sessions for the whole course count as one more group.
+     *
+     * @param \stdClass[] $sessions earliest first
+     * @param \DateTimeZone $tz
+     * @return array[] as pattern() gives them; empty when the groups disagree
+     */
+    private static function slots(array $sessions, \DateTimeZone $tz): array {
+        $bygroup = [];
+        foreach ($sessions as $session) {
+            $bygroup[(int) $session->groupid][] = $session;
+        }
+        if (count($bygroup) > 1) {
+            $shape = fn(array $slots): array => array_map(
+                fn(array $slot): array => [$slot['once'] ? $slot['start'] : $slot['weekday'],
+                    userdate($slot['start'], '%H:%M', $tz->getName()), $slot['duration']],
+                $slots
+            );
+            $shapes = array_map(fn(array $group): array => $shape(self::pattern($group, $tz)), $bygroup);
+            if (count(array_unique(array_map('serialize', $shapes))) > 1) {
+                return [];
+            }
+        }
+        return self::pattern($sessions, $tz);
     }
 
     /**
@@ -125,9 +199,10 @@ class schedule {
      *
      * @param \stdClass[] $sessions earliest first
      * @param \DateTimeZone $tz
-     * @return array[] weekday (1 Monday to 7 Sunday), start (the next class in that slot) and duration
+     * @return array[] weekday (1 Monday to 7 Sunday), start (the next class in that slot), duration and once (when no
+     *     weekday has a second class to come: each slot is then a one-off class on its date)
      */
-    private static function slots(array $sessions, \DateTimeZone $tz): array {
+    private static function pattern(array $sessions, \DateTimeZone $tz): array {
         // Weekday => "H:i|duration" => start times, earliest first.
         $days = [];
         foreach ($sessions as $session) {
@@ -153,13 +228,31 @@ class schedule {
                 'weekday' => $weekday,
                 'start' => $starts[0],
                 'duration' => (int) explode('|', key($kinds))[1],
+                'once' => $busiest === 1,
             ];
+        }
+        if ($busiest === 1) {
+            // One-off classes read in date order, not weekday order.
+            usort($slots, fn(array $a, array $b): int => $a['start'] <=> $b['start']);
         }
         return $slots;
     }
 
     /**
-     * The line without the time zone: days, then hours.
+     * The slots as clients get them.
+     *
+     * @param array[] $slots
+     * @return array[] start, duration and once
+     */
+    private static function public_slots(array $slots): array {
+        return array_map(
+            fn(array $slot): array => ['start' => $slot['start'], 'duration' => $slot['duration'], 'once' => $slot['once']],
+            $slots
+        );
+    }
+
+    /**
+     * The line without the time zone: days (or dates, for one-off classes), then hours.
      *
      * @param array[] $slots
      * @param \DateTimeZone $tz
@@ -167,7 +260,15 @@ class schedule {
      * @return string
      */
     private static function text(array $slots, \DateTimeZone $tz, bool $long): string {
-        $day = fn(array $slot): string => userdate($slot['start'], $long ? '%A' : '%a', $tz->getName());
+        if ($slots[0]['once']) {
+            // The same ICU pattern the browser's Intl uses: "November 17", "17 de noviembre".
+            $locale = str_replace('_', '-', current_language());
+            $pattern = (new \IntlDatePatternGenerator($locale))->getBestPattern($long ? 'dMMMM' : 'dMMM');
+            $formatter = new \IntlDateFormatter($locale, \IntlDateFormatter::NONE, \IntlDateFormatter::NONE, $tz, null, $pattern);
+            $day = fn(array $slot): string => (string) $formatter->format($slot['start']);
+        } else {
+            $day = fn(array $slot): string => userdate($slot['start'], $long ? '%A' : '%a', $tz->getName());
+        }
         $hours = function (array $slot) use ($tz, $long): string {
             $start = userdate($slot['start'], '%H:%M', $tz->getName());
             return $long ? $start . '-' . userdate($slot['start'] + $slot['duration'], '%H:%M', $tz->getName()) : $start;

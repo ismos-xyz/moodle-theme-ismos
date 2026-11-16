@@ -39,23 +39,28 @@ const join = (parts) => (parts.length < 2 ? parts.join('')
     : parts.slice(0, -1).join(', ') + ' & ' + parts[parts.length - 1]);
 
 /**
- * The line without the time zone, as theme_ismos\local\schedule::text() builds it.
+ * The line without the time zone, as theme_ismos\local\schedule::text() builds it: weekdays, or dates when the classes
+ * are one-offs.
  *
- * @param {{start: number, duration: number}[]} slots
+ * @param {{start: number, duration: number, once: boolean}[]} slots
  * @param {boolean} long Full day names and the end time; else short names and the start time
  * @param {string|undefined} lang
  * @param {string} timeZone
  * @returns {string}
  */
 const format = (slots, long, lang, timeZone) => {
-    const day = new Intl.DateTimeFormat(lang, {weekday: long ? 'long' : 'short', timeZone});
+    const once = slots[0].once === true;
+    const day = new Intl.DateTimeFormat(lang, once
+        ? {day: 'numeric', month: long ? 'long' : 'short', timeZone}
+        : {weekday: long ? 'long' : 'short', timeZone});
     const clock = new Intl.DateTimeFormat(lang, {hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone});
     const weekday = new Intl.DateTimeFormat('en-US', {weekday: 'short', timeZone});
     const items = slots.map((slot) => {
         const start = new Date(slot.start * 1000);
         const end = new Date((slot.start + slot.duration) * 1000);
         return {
-            index: WEEK.indexOf(weekday.format(start)),
+            // One-off classes read in date order, weekly ones Monday first.
+            index: once ? slot.start : WEEK.indexOf(weekday.format(start)),
             day: day.format(start),
             hours: long ? clock.format(start) + '-' + clock.format(end) : clock.format(start),
         };
@@ -80,8 +85,10 @@ export const init = () => {
         return;
     }
     const lang = document.documentElement.lang || undefined;
-    // "Europe/Madrid" reads as "Madrid"; a zone without a place (UTC) gets no name.
-    const place = timeZone.includes('/') ? timeZone.split('/').pop().replace(/_/g, ' ') : '';
+    // "Europe/Madrid" reads as "Madrid". A zone without a place gets no name: UTC, and Etc/GMT+3, whose sign is the
+    // reverse of its offset.
+    const place = timeZone.includes('/') && !timeZone.startsWith('Etc/')
+        ? timeZone.split('/').pop().replace(/_/g, ' ') : '';
 
     document.querySelectorAll(SELECTOR).forEach((element) => {
         const long = element.dataset.ismosClasstimes === 'long';

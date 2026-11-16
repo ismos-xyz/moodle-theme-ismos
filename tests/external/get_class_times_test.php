@@ -85,8 +85,8 @@ final class get_class_times_test extends \advanced_testcase {
         $this->assertSame([[
             'courseid' => (int) $course->id,
             'slots' => [
-                ['start' => (new \DateTimeImmutable('next tuesday 17:00', $tz))->getTimestamp(), 'duration' => 5400],
-                ['start' => (new \DateTimeImmutable('next thursday 17:00', $tz))->getTimestamp(), 'duration' => 5400],
+                ['start' => (new \DateTimeImmutable('next tuesday 17:00', $tz))->getTimestamp(), 'duration' => 5400, 'once' => false],
+                ['start' => (new \DateTimeImmutable('next thursday 17:00', $tz))->getTimestamp(), 'duration' => 5400, 'once' => false],
             ],
         ]], $result);
     }
@@ -96,6 +96,29 @@ final class get_class_times_test extends \advanced_testcase {
         $hidden = $this->course([['next tuesday 17:00', 90]], ['visible' => 0]);
 
         $this->assertSame([], $this->call([(int) $hidden->id, 999999, SITEID]));
+    }
+
+    public function test_courses_in_hidden_categories_are_left_out(): void {
+        // The public catalogue does not list them either.
+        $this->setAdminUser();
+        $category = $this->getDataGenerator()->create_category(['visible' => 0]);
+        $course = $this->course([['next tuesday 17:00', 90]], ['category' => $category->id]);
+
+        $this->assertSame([], $this->call([(int) $course->id]));
+    }
+
+    public function test_one_off_classes_are_marked(): void {
+        $this->setAdminUser();
+        $course = $this->course([['next tuesday 17:00', 90]]);
+
+        $this->assertTrue($this->call([(int) $course->id])[0]['slots'][0]['once']);
+    }
+
+    public function test_too_many_courses_in_one_call_are_refused(): void {
+        $this->setAdminUser();
+
+        $this->expectException(\invalid_parameter_exception::class);
+        $this->call(range(1, get_class_times::MAXCOURSES + 1));
     }
 
     public function test_any_signed_in_user_may_read_it(): void {

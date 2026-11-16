@@ -23,7 +23,7 @@
     Context variables required for this template:
     * form - "long" (course page: full day names and end time) or "short" (cards: short names and start time)
     * text - The line as rendered by the server
-    * slots - JSON list of the next class of each weekday: start (timestamp) and duration (seconds)
+    * slots - JSON list of the next class of each weekday: start (timestamp), duration (seconds) and once (one-off)
     * yourtime - "your time"
     * yourtimein - "your time, {$a}", the browser puts the place in {$a}
 
@@ -31,7 +31,7 @@
     {
         "form": "long",
         "text": "Tuesday & Thursday, 17:00-18:30 (UTC-3)",
-        "slots": "[{\"start\":1794945600,\"duration\":5400},{\"start\":1795118400,\"duration\":5400}]",
+        "slots": "[{\"start\":1794945600,\"duration\":5400,\"once\":false},{\"start\":1795118400,\"duration\":5400,\"once\":false}]",
         "yourtime": "your time",
         "yourtimein": "your time, {$a}"
     }
