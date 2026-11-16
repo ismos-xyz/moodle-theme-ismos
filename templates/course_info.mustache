@@ -17,7 +17,7 @@
 {{!
     @template theme_ismos/course_info
 
-    Public course information: label, title, complete summary, contacts, dates, custom fields and one primary action.
+    Public course information: label, title, complete summary, contacts, dates, class times, custom fields and one primary action.
 
     Example context (json):
     {
@@ -35,6 +35,7 @@
         "hasdates": true,
         "startdate": "Thursday, 5 November 2026",
         "enddate": "Thursday, 26 November 2026",
+        "classes": {"form": "long", "text": "Tuesday & Thursday, 17:00-18:30 (UTC-3)", "slots": "[{\"start\":1794945600,\"duration\":5400},{\"start\":1795118400,\"duration\":5400}]", "yourtime": "your time", "yourtimein": "your time, {$a}"},
         "customfields": "",
         "courseurl": "https://example.com/course/view.php?id=2"
     }
@@ -67,6 +68,7 @@
     <dl class="ismos-courseinfo__dates">
         {{#startdate}}<div><dt>{{#str}}startdate, moodle{{/str}}</dt><dd>{{startdate}}</dd></div>{{/startdate}}
         {{#enddate}}<div><dt>{{#str}}enddate, moodle{{/str}}</dt><dd>{{enddate}}</dd></div>{{/enddate}}
+        {{#classes}}<div><dt>{{#str}}classtimes, theme_ismos{{/str}}</dt><dd>{{> theme_ismos/classtimes}}</dd></div>{{/classes}}
     </dl>
     {{/hasdates}}
 

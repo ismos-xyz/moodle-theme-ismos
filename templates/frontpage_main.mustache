@@ -53,6 +53,7 @@
                 "category": "Bitcoin Dev",
                 "enrolled": "28 enrolled",
                 "code": "ES",
+                "classes": {"form": "short", "text": "Tue & Thu · 17:00 (UTC-3)", "slots": "[{\"start\":1794945600,\"duration\":5400},{\"start\":1795118400,\"duration\":5400}]", "yourtime": "your time", "yourtimein": "your time, {$a}"},
                 "url": "/course/view.php?id=2"
             }
         },
@@ -97,6 +98,7 @@
             {{#next}}
                 <aside class="ismos-next" aria-labelledby="ismos-next-title">
                     <p class="ismos-next__when"><span>{{#str}}nextcohort, theme_ismos{{/str}}</span><span>{{startslabel}}</span></p>
+                    {{#classes}}<p class="ismos-next__classes">{{> theme_ismos/classtimes}}</p>{{/classes}}
                     <h2 id="ismos-next-title" class="ismos-next__title">{{name}}</h2>
                     {{#hassummary}}<p class="ismos-next__text">{{summary}}</p>{{/hassummary}}
                     <p class="ismos-next__meta">

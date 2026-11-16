@@ -42,13 +42,14 @@ final class card {
      * Export a course for the card template.
      *
      * @param \core_course_list_element $course
-     * @return array url, title, label, image, summary, teachers and facts
+     * @return array url, title, label, image, summary, teachers, facts and class times
      */
     public static function export(\core_course_list_element $course): array {
         $context = \context_course::instance($course->id);
         $category = \core_course_category::get($course->category, IGNORE_MISSING, true);
         $teachers = self::teachers($course);
         $facts = self::facts($course);
+        $classes = schedule::template((int) $course->id, 'short');
 
         return [
             'id' => (int) $course->id,
@@ -63,7 +64,8 @@ final class card {
             'hasteachers' => !empty($teachers),
             'teachers' => $teachers,
             'facts' => $facts,
-            'hasfacts' => !empty($facts),
+            'classes' => $classes,
+            'hasfacts' => !empty($facts) || $classes !== null,
         ];
     }
 

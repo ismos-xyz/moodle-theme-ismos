@@ -457,6 +457,7 @@ final class catalogue {
             'summary' => $this->excerpt((string) $course->summary, (int) $course->summaryformat, $context, self::EXCERPT),
             'when' => $when,
             'haswhen' => $when !== '',
+            'classes' => schedule::template((int) $course->id, 'short'),
             'open' => $upcoming && $course->startdate,
             'past' => !$upcoming,
             'code' => $code,
