@@ -292,6 +292,14 @@ body.ismos-frontpage {
     margin: 0;
 }
 
+.ismos-next__classes {
+    color: var(--ismos-ink);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    line-height: 20px;
+    margin: 8px 0 0;
+}
+
 // Two classes: Hacker mode colours every heading white, and this card is white in both modes.
 .ismos-next .ismos-next__title {
     color: var(--ismos-ink);

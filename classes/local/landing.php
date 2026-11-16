@@ -149,6 +149,7 @@ final class landing {
         $summary = format_text($course['summary'], $course['summaryformat'], ['context' => $context, 'noclean' => false]);
         $summary = shorten_text(trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($summary)))), self::EXCERPT);
         $enrolled = $this->count_enrolled((int) $course['id']);
+        $classes = schedule::template((int) $course['id'], 'short');
         return [
             'startslabel' => get_string('cardstarts', 'theme_ismos', self::short_date((int) $course['startdate'])),
             'name' => $this->course_name($course),
@@ -158,6 +159,7 @@ final class landing {
             // A zero count reads as "nobody is coming", so the card only shows it once someone has enrolled.
             'enrolled' => $enrolled > 0 ? get_string('enrolledcount', 'theme_ismos', $enrolled) : null,
             'code' => $course['code'],
+            'classes' => $classes,
             'url' => card::course_url((int) $course['id']),
         ];
     }

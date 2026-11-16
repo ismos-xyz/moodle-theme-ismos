@@ -33,6 +33,7 @@
     * teachers - Up to two teachers: name, pictureurl (may be null), initials
     * hasfacts - Whether there are facts
     * facts - Strings for the facts line
+    * classes - Optional class times for theme_ismos/classtimes: form, text, slots
 
     Example context (json):
     {
@@ -51,7 +52,8 @@
             {"name": "Grace Hopper", "pictureurl": null, "initials": "GH"}
         ],
         "hasfacts": true,
-        "facts": ["Starts Monday, 2 November 2026"]
+        "facts": ["Starts Monday, 2 November 2026"],
+        "classes": {"form": "short", "text": "Tue & Thu · 17:00 (UTC-3)", "slots": "[{\"start\":1794945600,\"duration\":5400},{\"start\":1795118400,\"duration\":5400}]", "yourtime": "your time", "yourtimein": "your time, {$a}"}
     }
 }}
 <a class="ismos-card{{#hidden}} ismos-card--hidden{{/hidden}}" href="{{{url}}}" aria-labelledby="{{uid}}-title{{#hidden}} {{uid}}-hidden{{/hidden}}"{{#summary}} aria-describedby="{{uid}}-text{{#hasfacts}} {{uid}}-facts{{/hasfacts}}"{{/summary}}{{^summary}}{{#hasfacts}} aria-describedby="{{uid}}-facts"{{/hasfacts}}{{/summary}}>
@@ -75,6 +77,7 @@
     {{#hasfacts}}
     <span class="ismos-card__facts" id="{{uid}}-facts">
         {{#facts}}<span>{{.}}</span>{{/facts}}
+        {{#classes}}<span>{{> theme_ismos/classtimes}}</span>{{/classes}}
     </span>
     {{/hasfacts}}
 </a>

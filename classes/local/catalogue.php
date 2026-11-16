@@ -185,6 +185,7 @@ final class catalogue {
         $counts = $this->get_enrolled_counts();
         $teachers = $this->get_teachers();
         $images = $this->get_images(array_keys($courses));
+        $classes = schedule::template_many(array_keys($courses), 'short');
         [$levels, $bylevel] = $this->levels($courses);
 
         // The selected category: its top-level level, and the filter inside it.
@@ -210,7 +211,7 @@ final class catalogue {
             }
             $cards = [];
             foreach ($this->order($pool) as $course) {
-                $cards[] = $this->card($course, $counts, $teachers, $images);
+                $cards[] = $this->card($course, $counts, $teachers, $images, $classes);
             }
             // On the level's own page the description is the lead under the title; it is not repeated.
             $description = ($selected && (int) $selected->id === (int) $cat->id) ? '' :
@@ -267,8 +268,9 @@ final class catalogue {
             $counts = $this->get_enrolled_counts();
             $teachers = $this->get_teachers();
             $images = $this->get_images(array_keys($matches));
+            $classes = schedule::template_many(array_keys($matches), 'short');
             foreach ($this->order($matches) as $course) {
-                $cards[] = $this->card($course, $counts, $teachers, $images);
+                $cards[] = $this->card($course, $counts, $teachers, $images, $classes);
             }
         }
         $name = get_string('searchresults');
@@ -424,9 +426,10 @@ final class catalogue {
      * @param int[] $counts enrolments by course id
      * @param \stdClass[] $teachers first contact by course id
      * @param string[] $images cover image URL by course id
+     * @param array[] $classes class times template context by course id
      * @return array
      */
-    private function card(\stdClass $course, array $counts, array $teachers, array $images): array {
+    private function card(\stdClass $course, array $counts, array $teachers, array $images, array $classes): array {
         global $PAGE;
         $context = \context_course::instance($course->id);
         $upcoming = (int) $course->startdate >= $this->today;
@@ -457,6 +460,7 @@ final class catalogue {
             'summary' => $this->excerpt((string) $course->summary, (int) $course->summaryformat, $context, self::EXCERPT),
             'when' => $when,
             'haswhen' => $when !== '',
+            'classes' => $classes[(int) $course->id] ?? null,
             'open' => $upcoming && $course->startdate,
             'past' => !$upcoming,
             'code' => $code,

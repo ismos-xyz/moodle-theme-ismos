@@ -115,6 +115,13 @@
     overflow-wrap: anywhere;
 }
 
+.ismos-ccard__classes {
+    color: var(--ismos-text);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    line-height: 20px;
+}
+
 .ismos-ccard__text {
     -webkit-box-orient: vertical;
     color: var(--ismos-text-muted);

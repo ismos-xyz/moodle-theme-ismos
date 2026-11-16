@@ -74,7 +74,7 @@ class course_renderer extends \core_course_renderer {
     }
 
     /**
-     * Public course information page (/course/info.php): the whole summary, every contact and an
+     * Public course information page (/course/info.php): the whole summary, every contact, the class times and an
      * uncropped cover. Any other page type (the enrolment page, for one) keeps core's box.
      *
      * @param \stdClass $course
@@ -99,6 +99,7 @@ class course_renderer extends \core_course_renderer {
             $customfields = trim($handler->display_custom_fields_data($element->get_custom_fields()));
         }
         $teachers = \theme_ismos\local\card::teachers($element, null);
+        $classes = \theme_ismos\local\schedule::template((int) $course->id, 'long');
 
         return $this->render_from_template('theme_ismos/course_info', [
             'title' => $fullname,
@@ -109,9 +110,10 @@ class course_renderer extends \core_course_renderer {
             'summary' => $chelper->get_course_formatted_summary($element, ['overflowdiv' => false, 'noclean' => false]),
             'hasteachers' => !empty($teachers),
             'teachers' => $teachers,
-            'hasdates' => $course->startdate || $course->enddate,
+            'hasdates' => $course->startdate || $course->enddate || $classes !== null,
             'startdate' => $course->startdate ? userdate($course->startdate, $dateformat) : '',
             'enddate' => $course->enddate ? userdate($course->enddate, $dateformat) : '',
+            'classes' => $classes,
             'customfields' => $customfields,
             'courseurl' => (new \moodle_url('/course/view.php', ['id' => $course->id]))->out(false),
         ]);
