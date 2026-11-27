@@ -171,6 +171,20 @@ class core_renderer extends \theme_boost\output\core_renderer {
     }
 
     /**
+     * No "Switch to the standard theme" link in the footer.
+     *
+     * Core prints it on every page served to a mobile or tablet user agent, crawlers included.
+     * Since Moodle 4.3 the device type no longer selects a theme, so the link does nothing here,
+     * and when a crawler follows it the stale sesskey becomes a 404 error page that boots
+     * Moodle (~60/day in production, ENG-564).
+     *
+     * @return string
+     */
+    protected function theme_switch_links() {
+        return '';
+    }
+
+    /**
      * Static file in the theme's pix folder, served directly (image_url() would turn favicon into .ico).
      *
      * @param string $file File name in pix/.
