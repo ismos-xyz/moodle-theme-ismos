@@ -171,12 +171,6 @@ class core_renderer extends \theme_boost\output\core_renderer {
     }
 
     /**
-     * Static file in the theme's pix folder, served directly (image_url() would turn favicon into .ico).
-     *
-     * @param string $file File name in pix/.
-     * @return moodle_url
-     */
-    /**
      * No "Switch to the standard theme" link in the footer.
      *
      * Core prints it on every page served to a mobile or tablet user agent, crawlers included.
@@ -190,6 +184,12 @@ class core_renderer extends \theme_boost\output\core_renderer {
         return '';
     }
 
+    /**
+     * Static file in the theme's pix folder, served directly (image_url() would turn favicon into .ico).
+     *
+     * @param string $file File name in pix/.
+     * @return moodle_url
+     */
     private function ismos_pix_url(string $file): moodle_url {
         return new moodle_url("/theme/ismos/pix/$file");
     }
